@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Seyahat Planlama</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 20px; }
+        h1 { color: #333; text-align: center; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+        input, select, button { padding: 10px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #28a745; color: white; }
+        .btn-sil { background-color: #dc3545; color: white; width: auto; padding: 6px 12px; font-size: 14px; }
+        .btn-sil:hover { background-color: #c82333; }
+        .arama-kutusu { border: 2px solid #28a745; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✈️ Akıllı Seyahat Planlama</h1>
+
+        <h3>Yeni Seyahat Ekle</h3>
+        <form id="seyahatFormu">
+            <input type="text" id="sehir" placeholder="Gidilecek Şehir (Örn: Roma)" required>
+            <input type="date" id="tarih" required>
+            <select id="durum">
+                <option value="Planlanıyor">Planlanıyor</option>
+                <option value="Tamamlandı">Tamamlandı</option>
+                <option value="İptal Edildi">İptal Edildi</option>
+            </select>
+            <input type="number" id="butce" placeholder="Tahmini Bütçe (₺)" required>
+            <button type="submit">Seyahati Kaydet</button>
+        </form>
+
+        <h3>Kayıtlı Seyahatlerim</h3>
+        <input type="text" id="aramaInput" class="arama-kutusu" placeholder="🔍 Şehir ismine göre ara..." onkeyup="seyahatleriYukle()">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Şehir</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Bütçe (₺)</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+            <tbody id="seyahatListesi"></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', seyahatleriYukle);
+
+        const form = document.getElementById('seyahatFormu');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const yeniSeyahat = {
+                sehir: document.getElementById('sehir').value,
+                tarih: document.getElementById('tarih').value,
+                durum: document.getElementById('durum').value,
+                butce: document.getElementById('butce').value
+            };
+
+            await fetch('/api/seyahatler', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(yeniSeyahat)
+            });
+
+            form.reset();
+            seyahatleriYukle();
+        });
+
+        async function seyahatleriYukle() {
+            const aramaKelimesi = document.getElementById('aramaInput').value;
+            // DÜZELTİLEN KISIM: Eğik tırnak hatası almamak için standart "+" kullandık
+            const response = await fetch('/api/seyahatler?arama=' + aramaKelimesi);
+            const seyahatler = await response.json();
+            
+            const liste = document.getElementById('seyahatListesi');
+            liste.innerHTML = '';
+
+            seyahatler.forEach(seyahat => {
+                liste.innerHTML += `
+                    <tr>
+                        <td>${seyahat.sehir}</td>
+                        <td>${seyahat.tarih}</td>
+                        <td>${seyahat.durum}</td>
+                        <td>${seyahat.butce}</td>
+                        <td><button class="btn-sil" onclick="seyahatSil(${seyahat.id})">Sil</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function seyahatSil(id) {
+            if(confirm('Bu seyahati silmek istediğinize emin misiniz?')) {
+                // Burada da aynı garanti yöntemi kullandık
+                await fetch('/api/seyahatler/' + id, { method: 'DELETE' });
+                seyahatleriYukle();
+            }
+        }
+    </script>
+        
+</body>
+</html>
