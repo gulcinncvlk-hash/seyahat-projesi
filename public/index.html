@@ -7,24 +7,56 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 20px; }
         h1 { color: #333; text-align: center; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
+        
+        /* Özet Panosu Tasarımı */
+        .dashboard { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; }
+        .card { background: #17a2b8; color: white; padding: 15px; border-radius: 8px; flex: 1; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .card h3 { margin: 0 0 10px 0; font-size: 16px; }
+        .card p { margin: 0; font-size: 24px; font-weight: bold; }
+        .card.bakiye { background: #ffc107; color: #333; }
+        .card.basari { background: #28a745; }
+
         input, select, button { padding: 10px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
         button:hover { background-color: #0056b3; }
+        
+        /* Arama ve Tablo Tasarımı */
+        .arama-kutusu { border: 2px solid #17a2b8; margin-bottom: 15px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
-        th { background-color: #28a745; color: white; }
-        .btn-sil { background-color: #dc3545; color: white; width: auto; padding: 6px 12px; font-size: 14px; }
+        th { background-color: #343a40; color: white; }
+        
+        /* Aksiyon Butonları */
+        .btn-grup { display: flex; gap: 5px; }
+        .btn-sil { background-color: #dc3545; color: white; padding: 6px 10px; font-size: 13px; border-radius: 4px; }
         .btn-sil:hover { background-color: #c82333; }
-        .arama-kutusu { border: 2px solid #28a745; margin-bottom: 15px; }
+        .btn-duzenle { background-color: #ffc107; color: #333; padding: 6px 10px; font-size: 13px; border-radius: 4px; }
+        .btn-duzenle:hover { background-color: #e0a800; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>✈️ Akıllı Seyahat Planlama</h1>
+        <h1>✈️ Akıllı Seyahat Planlama Sistemi</h1>
 
-        <h3>Yeni Seyahat Ekle</h3>
+        <div class="dashboard">
+            <div class="card">
+                <h3>Kayıtlı Seyahat</h3>
+                <p id="toplamSeyahat">0</p>
+            </div>
+            <div class="card basari">
+                <h3>Tamamlanan</h3>
+                <p id="tamamlananSeyahat">0</p>
+            </div>
+            <div class="card bakiye">
+                <h3>Toplam Bütçe</h3>
+                <p id="toplamButce">0 ₺</p>
+            </div>
+        </div>
+
+        <h3 id="formBaslik">Yeni Seyahat Ekle</h3>
         <form id="seyahatFormu">
+            <input type="hidden" id="seyahatId">
             <input type="text" id="sehir" placeholder="Gidilecek Şehir (Örn: Roma)" required>
             <input type="date" id="tarih" required>
             <select id="durum">
@@ -32,12 +64,12 @@
                 <option value="Tamamlandı">Tamamlandı</option>
                 <option value="İptal Edildi">İptal Edildi</option>
             </select>
-            <input type="number" id="butce" placeholder="Tahmini Bütçe (₺)" required>
-            <button type="submit">Seyahati Kaydet</button>
+            <input type="number" id="butce" placeholder="Tahmini Bütçe (₺)" required min="0">
+            <button type="submit" id="kaydetBtn">Seyahati Kaydet</button>
         </form>
 
         <h3>Kayıtlı Seyahatlerim</h3>
-        <input type="text" id="aramaInput" class="arama-kutusu" placeholder="🔍 Şehir ismine göre ara..." onkeyup="seyahatleriYukle()">
+        <input type="text" id="aramaInput" class="arama-kutusu" placeholder="🔍 Şehir ismine göre filtrele..." onkeyup="seyahatleriYukle()">
 
         <table>
             <thead>
@@ -46,7 +78,7 @@
                     <th>Tarih</th>
                     <th>Durum</th>
                     <th>Bütçe (₺)</th>
-                    <th>İşlem</th>
+                    <th>İşlemler</th>
                 </tr>
             </thead>
             <tbody id="seyahatListesi"></tbody>
@@ -57,55 +89,100 @@
         document.addEventListener('DOMContentLoaded', seyahatleriYukle);
 
         const form = document.getElementById('seyahatFormu');
+        
+        // Ekleme veya Güncelleme (POST veya PUT)
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const yeniSeyahat = {
+            
+            const id = document.getElementById('seyahatId').value;
+            const seyahatVerisi = {
                 sehir: document.getElementById('sehir').value,
                 tarih: document.getElementById('tarih').value,
                 durum: document.getElementById('durum').value,
-                butce: document.getElementById('butce').value
+                butce: parseFloat(document.getElementById('butce').value)
             };
 
-            await fetch('/api/seyahatler', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(yeniSeyahat)
-            });
+            // Eğer gizli ID alanında değer varsa bu bir GÜNCELLEME (PUT) işlemidir
+            if (id) {
+                await fetch('/api/seyahatler/' + id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(seyahatVerisi)
+                });
+                document.getElementById('kaydetBtn').innerText = "Seyahati Kaydet";
+                document.getElementById('formBaslik').innerText = "Yeni Seyahat Ekle";
+            } else {
+                // Eğer ID yoksa bu YENİ EKLEME (POST) işlemidir
+                await fetch('/api/seyahatler', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(seyahatVerisi)
+                });
+            }
 
             form.reset();
+            document.getElementById('seyahatId').value = ""; // Gizli ID'yi temizle
             seyahatleriYukle();
         });
 
+        // Verileri Getirme ve Özet Panosunu Hesaplama (GET)
         async function seyahatleriYukle() {
             const aramaKelimesi = document.getElementById('aramaInput').value;
-            // DÜZELTİLEN KISIM: Eğik tırnak hatası almamak için standart "+" kullandık
             const response = await fetch('/api/seyahatler?arama=' + aramaKelimesi);
             const seyahatler = await response.json();
             
             const liste = document.getElementById('seyahatListesi');
             liste.innerHTML = '';
 
+            let toplamButce = 0;
+            let tamamlanan = 0;
+
             seyahatler.forEach(seyahat => {
+                // İstatistikleri hesapla
+                toplamButce += seyahat.butce;
+                if(seyahat.durum === 'Tamamlandı') tamamlanan++;
+
+                // Tabloya satır ekle (YENİ: Düzenle Butonu)
                 liste.innerHTML += `
                     <tr>
                         <td>${seyahat.sehir}</td>
                         <td>${seyahat.tarih}</td>
                         <td>${seyahat.durum}</td>
-                        <td>${seyahat.butce}</td>
-                        <td><button class="btn-sil" onclick="seyahatSil(${seyahat.id})">Sil</button></td>
+                        <td>${seyahat.butce} ₺</td>
+                        <td class="btn-grup">
+                            <button class="btn-duzenle" onclick="seyahatDuzenle(${seyahat.id}, '${seyahat.sehir}', '${seyahat.tarih}', '${seyahat.durum}', ${seyahat.butce})">Düzenle</button>
+                            <button class="btn-sil" onclick="seyahatSil(${seyahat.id})">Sil</button>
+                        </td>
                     </tr>
                 `;
             });
+
+            // Özet Panosu (Dashboard) Değerlerini Ekrana Yazdır
+            document.getElementById('toplamSeyahat').innerText = seyahatler.length;
+            document.getElementById('tamamlananSeyahat').innerText = tamamlanan;
+            document.getElementById('toplamButce').innerText = toplamButce.toLocaleString('tr-TR') + " ₺";
         }
 
+        // Güncelleme Formunu Doldurma İşlemi
+        function seyahatDuzenle(id, sehir, tarih, durum, butce) {
+            document.getElementById('seyahatId').value = id;
+            document.getElementById('sehir').value = sehir;
+            document.getElementById('tarih').value = tarih;
+            document.getElementById('durum').value = durum;
+            document.getElementById('butce').value = butce;
+            
+            document.getElementById('formBaslik').innerText = "Seyahati Güncelle";
+            document.getElementById('kaydetBtn').innerText = "Değişiklikleri Kaydet";
+            window.scrollTo(0, 0); // Sayfayı en üste kaydır
+        }
+
+        // Silme İşlemi (DELETE)
         async function seyahatSil(id) {
             if(confirm('Bu seyahati silmek istediğinize emin misiniz?')) {
-                // Burada da aynı garanti yöntemi kullandık
                 await fetch('/api/seyahatler/' + id, { method: 'DELETE' });
                 seyahatleriYukle();
             }
         }
     </script>
-        
 </body>
 </html>
