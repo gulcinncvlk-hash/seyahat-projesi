@@ -1,0 +1,5 @@
+{
+    "env": { "browser": true, "commonjs": true, "node": true, "jest": true },
+    "extends": "eslint:recommended",
+    "rules": { "no-unused-vars": "warn", "no-console": "off" }
+}

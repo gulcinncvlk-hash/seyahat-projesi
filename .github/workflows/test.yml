@@ -1,0 +1,15 @@
+name: Proje Test Kontrolü
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Paketleri Yukle
+        run: npm install
+      - name: Testleri Calistir
+        run: npm test
