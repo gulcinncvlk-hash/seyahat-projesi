@@ -15,6 +15,7 @@ describe('Seyahat Controller İş Mantığı Testleri', () => {
     it('Geçerli verilerle yeni bir seyahat başarıyla eklenmeli', () => {
         // Sistemi kandırmak için sahte bir kullanıcı isteği (req) hazırlıyoruz
         const req = {
+            user: { id: 99 }, // YENİ: Test robotuna geçiş yapabilmesi için sahte bir kimlik verdik
             body: { sehir: 'Ankara', tarih: '2026-10-29', durum: 'Planlanıyor', butce: 2000 }
         };
         
@@ -36,6 +37,7 @@ describe('Seyahat Controller İş Mantığı Testleri', () => {
     it('Şehir veya tarih eksik gönderilirse 400 hata kodu vermeli', () => {
         // Şehir ve tarihin olmadığı hatalı bir istek
         const req = { 
+            user: { id: 99 }, // YENİ: Test robotuna geçiş yapabilmesi için sahte bir kimlik verdik
             body: { durum: 'Planlanıyor', butce: 5000 } 
         };
         
