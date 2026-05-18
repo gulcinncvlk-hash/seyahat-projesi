@@ -6,9 +6,14 @@
     <title>Akıllı Seyahat Planlama</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 20px; }
-        h1 { color: #333; text-align: center; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
         
+        /* Üst Başlık ve Çıkış Butonu Tasarımı */
+        .header-alan { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        .header-alan h1 { color: #333; margin: 0; font-size: 24px; }
+        .btn-cikis { background-color: #dc3545; color: white; padding: 8px 15px; width: auto; font-size: 14px; margin: 0; }
+        .btn-cikis:hover { background-color: #c82333; }
+
         /* Özet Panosu Tasarımı */
         .dashboard { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; }
         .card { background: #17a2b8; color: white; padding: 15px; border-radius: 8px; flex: 1; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -37,7 +42,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>✈️ Akıllı Seyahat Planlama Sistemi</h1>
+        <div class="header-alan">
+            <h1>✈️ Akıllı Seyahat Planlama Sistemi</h1>
+            <button class="btn-cikis" onclick="cikisYap()">🚪 Çıkış Yap</button>
+        </div>
 
         <div class="dashboard">
             <div class="card">
@@ -86,8 +94,28 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', seyahatleriYukle);
+        // YENİ 1: GÜVENLİK KONTROLÜ - Sayfa açıldığında token var mı bak
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html'; // Yoksa direkt giriş sayfasına at
+        }
 
+        // YENİ 2: ÇIKIŞ YAP FONKSİYONU
+        function cikisYap() {
+            localStorage.removeItem('token'); // Kimliği sil
+            window.location.href = 'login.html'; // Giriş sayfasına dön
+        }
+
+        // YENİ 3: Token Süresi Dolduysa Atan Güvenlik Sistemi
+        function yetkiKontrol(response) {
+            if (response.status === 401 || response.status === 403) {
+                alert('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.');
+                cikisYap();
+                throw new Error("Yetkisiz Erişim");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', seyahatleriYukle);
         const form = document.getElementById('seyahatFormu');
         
         // Ekleme veya Güncelleme (POST veya PUT)
@@ -102,33 +130,45 @@
                 butce: parseFloat(document.getElementById('butce').value)
             };
 
-            // Eğer gizli ID alanında değer varsa bu bir GÜNCELLEME (PUT) işlemidir
             if (id) {
-                await fetch('/api/seyahatler/' + id, {
+                // PUT: Güncelleme (Token Eklendi)
+                const res = await fetch('/api/seyahatler/' + id, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token 
+                    },
                     body: JSON.stringify(seyahatVerisi)
                 });
+                yetkiKontrol(res);
                 document.getElementById('kaydetBtn').innerText = "Seyahati Kaydet";
                 document.getElementById('formBaslik').innerText = "Yeni Seyahat Ekle";
             } else {
-                // Eğer ID yoksa bu YENİ EKLEME (POST) işlemidir
-                await fetch('/api/seyahatler', {
+                // POST: Yeni Ekleme (Token Eklendi)
+                const res = await fetch('/api/seyahatler', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token 
+                    },
                     body: JSON.stringify(seyahatVerisi)
                 });
+                yetkiKontrol(res);
             }
 
             form.reset();
-            document.getElementById('seyahatId').value = ""; // Gizli ID'yi temizle
+            document.getElementById('seyahatId').value = ""; 
             seyahatleriYukle();
         });
 
-        // Verileri Getirme ve Özet Panosunu Hesaplama (GET)
+        // Verileri Getirme (GET) (Token Eklendi)
         async function seyahatleriYukle() {
             const aramaKelimesi = document.getElementById('aramaInput').value;
-            const response = await fetch('/api/seyahatler?arama=' + aramaKelimesi);
+            const response = await fetch('/api/seyahatler?arama=' + aramaKelimesi, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            yetkiKontrol(response); // Hata varsa giriş sayfasına at
             const seyahatler = await response.json();
             
             const liste = document.getElementById('seyahatListesi');
@@ -138,11 +178,9 @@
             let tamamlanan = 0;
 
             seyahatler.forEach(seyahat => {
-                // İstatistikleri hesapla
                 toplamButce += seyahat.butce;
                 if(seyahat.durum === 'Tamamlandı') tamamlanan++;
 
-                // Tabloya satır ekle (YENİ: Düzenle Butonu)
                 liste.innerHTML += `
                     <tr>
                         <td>${seyahat.sehir}</td>
@@ -157,13 +195,11 @@
                 `;
             });
 
-            // Özet Panosu (Dashboard) Değerlerini Ekrana Yazdır
             document.getElementById('toplamSeyahat').innerText = seyahatler.length;
             document.getElementById('tamamlananSeyahat').innerText = tamamlanan;
             document.getElementById('toplamButce').innerText = toplamButce.toLocaleString('tr-TR') + " ₺";
         }
 
-        // Güncelleme Formunu Doldurma İşlemi
         function seyahatDuzenle(id, sehir, tarih, durum, butce) {
             document.getElementById('seyahatId').value = id;
             document.getElementById('sehir').value = sehir;
@@ -173,13 +209,17 @@
             
             document.getElementById('formBaslik').innerText = "Seyahati Güncelle";
             document.getElementById('kaydetBtn').innerText = "Değişiklikleri Kaydet";
-            window.scrollTo(0, 0); // Sayfayı en üste kaydır
+            window.scrollTo(0, 0);
         }
 
-        // Silme İşlemi (DELETE)
+        // Silme İşlemi (DELETE) (Token Eklendi)
         async function seyahatSil(id) {
             if(confirm('Bu seyahati silmek istediğinize emin misiniz?')) {
-                await fetch('/api/seyahatler/' + id, { method: 'DELETE' });
+                const res = await fetch('/api/seyahatler/' + id, { 
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                yetkiKontrol(res);
                 seyahatleriYukle();
             }
         }
